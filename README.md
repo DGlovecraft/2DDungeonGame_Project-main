@@ -175,6 +175,339 @@ Enemy.cs และ EnemyRedDog.cs โดยเราจะให้คลาส 
 ทีนี้เราก็สามารถ  Copy ตัวละคร `EnemyRedDog` ไปวางไว้ในด่านต่างๆของเรากี่ตัวก็ได้  
 <img width="215" height="101" alt="image" src="https://github.com/user-attachments/assets/a1471cae-74e9-4a4c-951b-d48a48ad6bf6" />
 
+## ส่วนที่ 4
+`การโจมตีของผู้เล่น (Player Attack)`
+
+`เพื่อให้ผู้เล่นสามารถโจมตีศัตรูได้ เราจะเพิ่มระบบ การตรวจจับการกดปุ่มโจมตี และ การชนกับศัตรู ภายในระยะที่กำหนด`
+ผู้เล่นกดปุ่ม J หรือ Left Mouse Button เพื่อโจมตี
+
+ระบบจะสั่งให้ Animator เล่นอนิเมชัน "Attack"
+เมื่ออนิเมชันเข้าสู่ช่วงโจมตี จะตรวจสอบว่ามีศัตรูอยู่ในระยะ Attack Range หรือไม่
+ถ้าพบศัตรู จะเรียกฟังก์ชัน TakeDamage() ใน Enemy เพื่อลด HP ของศัตรู
+
+การตั้งค่าใน Unity
+
+ที่ Hierarchy ของ Player
+จะมีวัตถุลูกชื่อ Player Attack
+(เป็นจุดอ้างอิงระยะโจมตี)
+
+<img width="154" height="83" alt="image" src="https://github.com/user-attachments/assets/cf596cfa-db74-45ba-afc9-23acde81ac18" />
+
+สคริปต์ PlayerAttack.cs
+```
+using UnityEngine;
+
+public class PlayerAttack : MonoBehaviour
+{
+    public float attackDamage = 10f;
+    private int enemyLayer;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        enemyLayer = LayerMask.NameToLayer("Enemy");
+    }
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.layer == enemyLayer)
+        {
+            collision.GetComponent<Enemy>().TakeDamage(attackDamage);
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
+
+```
+เมื่อทำการเพิ่มสคริปต์ PlayerAttack.cs แล้ว
+ผู้เล่นจะเริ่มต้นด้วยพลังโจมตี (Attack Damage) เท่ากับ 10 หน่วย
+โดยสคริปต์นี้จะทำหน้าที่ตรวจจับการชนของวัตถุ Player Attack กับศัตรูที่อยู่ในเลเยอร์ Enemy
+เมื่อเกิดการชน ระบบจะเรียกใช้ฟังก์ชัน TakeDamage() ในสคริปต์ Enemy เพื่อทำการลดค่า HP ของศัตรูตามค่าพลังโจมตีที่กำหนดไว้
+การตั้งค่าเพิ่มเติมใน Unity
+ที่วัตถุ Player Attack ให้เพิ่มคอมโพเนนต์ Polygon Collider 2D
+ตั้งค่า Is Trigger → ✅ (เปิดใช้งาน)
+เพิ่มสคริปต์ PlayerAttack.cs ลงในวัตถุนี้
+ตั้งค่าตัวแปร Attack Damage เป็น 10 (หรือปรับเพิ่ม-ลดได้ตามต้องการ)
+ตรวจสอบให้แน่ใจว่า ศัตรูทุกตัวอยู่ในเลเยอร์ Enemy
+เมื่อผู้เล่นโจมตีและเกิดการชนกับศัตรู ศัตรูจะได้รับความเสียหายตามค่าพลังโจมตี
+### ส่วนที่ 5
+`การเดินและกระโดดของผู้เล่น (Player Movement & Jump)`
+ในส่วนนี้ เราจะทำให้ตัวละครของผู้เล่นสามารถ เดินและกระโดด ได้
+โดยใช้ระบบ Unity Input System ซึ่งเราจะสร้างและเชื่อมโยงกับสคริปต์ `GatherInput.cs`
+เพื่อให้ควบคุมการกดปุ่มต่าง ๆ เช่น เดินซ้าย–ขวา, กระโดด และโจมตี
+`ขั้นตอนที่ 1 : ติดตั้งและตั้งค่า Input System`
+เปิด Window → Package Manager → Unity Registry
+ติดตั้งแพ็กเกจ Input System
+ไปที่ Assets → Create → Input Actions แล้วตั้งชื่อว่า Controls
+เปิดไฟล์ Controls จะเห็นคอลัมน์ 3 ส่วน:
+Action Maps – กลุ่มของคำสั่ง
+Actions – การกระทำต่าง ๆ ของผู้เล่น
+Properties – รายละเอียดของปุ่ม
+สร้าง Action Map ใหม่ชื่อ Player
+แล้วเพิ่ม Action ดังนี้
+<img width="883" height="239" alt="image" src="https://github.com/user-attachments/assets/744e5472-b3e2-4fc2-95cd-6e23d0acb59f" />
+`กด Save Asset ด้านบนเพื่อบันทึกการตั้งค่า`
+`ขั้นตอนที่ 2 : สร้างสคริปต์ GatherInput.cs`
+สคริปต์นี้จะเป็นตัวกลางระหว่างระบบ Input System และตัวควบคุมการเคลื่อนไหว `(PlayerMoveControls.cs)`
+โดยจะรับค่าปุ่มที่กดจากผู้เล่น แล้วส่งต่อให้ตัวละครในเกม
+```
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class GatherInput : MonoBehaviour
+{
+    private Controls myControl;
+    public float valueX;
+    public bool jumpInput;
+    public bool tryAttack;
+
+    public void Awake()
+    {
+        myControl = new Controls();
+    }
+
+    private void OnEnable()
+    {
+        myControl.Player.Move.performed += StartMove;
+        myControl.Player.Move.canceled += StopMove;
+
+        myControl.Player.Jump.performed += JumpStart;
+        myControl.Player.Jump.canceled += JumpStop;
+
+        myControl.Player.Attack.started += TryToAttach;
+        myControl.Player.Attack.canceled += StopTryToAttack;
+
+        myControl.Player.Enable();
+    }
+
+    public void OnDisable()
+    {
+        myControl.Player.Move.performed -= StartMove;
+        myControl.Player.Move.canceled -= StopMove;
+
+        myControl.Player.Jump.performed -= JumpStart;
+        myControl.Player.Jump.canceled -= JumpStop;
+
+        myControl.Player.Attack.started -= TryToAttach;
+        myControl.Player.Attack.canceled -= StopTryToAttack;
+
+        myControl.Player.Disable();
+    }
+
+    private void StartMove(InputAction.CallbackContext ctx)
+    {
+        valueX = ctx.ReadValue<float>();
+    }
+
+    private void StopMove(InputAction.CallbackContext ctx)
+    {
+        valueX = 0;
+    }
+
+    private void JumpStart(InputAction.CallbackContext ctx)
+    {
+        jumpInput = true;
+    }
+
+    private void JumpStop(InputAction.CallbackContext ctx)
+    {
+        jumpInput = false;
+    }
+
+    private void TryToAttach(InputAction.CallbackContext ctx)
+    {
+        tryAttack = true;
+    }
+
+    private void StopTryToAttack(InputAction.CallbackContext ctx)
+    {
+        tryAttack = false;
+    }
+```
+`ขั้นตอนที่ 3 : สคริปต์ควบคุมการเดินและกระโดด PlayerMoveControls.cs`
+
+สคริปต์นี้ใช้ข้อมูลจาก GatherInput เพื่อควบคุม Rigidbody2D ของผู้เล่น
+ให้สามารถเคลื่อนไหวและกระโดดได้อย่างสมจริง
+```
+using System.Collections;
+using UnityEngine;
+
+public class PlayerMoveControls : MonoBehaviour
+{
+    public float speed = 5f;
+    private GatherInput gatherInput;
+    private Rigidbody2D rb;
+    public float jumpForce;
+    public float rayLength;
+    public LayerMask groundLayer;
+    public Transform leftPoint;
+
+    private bool grounded = false;
+    private int direction = 1;
+    private Animator animator;
+    private bool knockBack = false;
+
+    void Start()
+    {
+        gatherInput = GetComponent<GatherInput>();
+        rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+    }
+
+    void Update()
+    {
+        rb.linearVelocity = new Vector2(speed * gatherInput.valueX, rb.linearVelocity.y);
+        SetAnimatorValues();
+    }
+
+    private void FixedUpdate()
+    {
+        CheckStatus();
+
+        if (knockBack) return;
+
+        Move();
+        JumpPlayer();
+    }
+
+    private void Move()
+    {
+        Flip();
+        rb.linearVelocity = new Vector2(speed * gatherInput.valueX, rb.linearVelocity.y);
+    }
+
+    private void Flip()
+    {
+        if (gatherInput.valueX * direction < 0)
+        {
+            transform.localScale = new Vector3(-transform.localScale.x, transform.localScale.y, transform.localScale.z);
+            direction *= -1;
+        }
+    }
+
+    private void SetAnimatorValues()
+    {
+        animator.SetFloat("Speed", Mathf.Abs(rb.linearVelocity.x));
+        animator.SetFloat("vSpeed", rb.linearVelocity.y);
+        animator.SetBool("Grounded", grounded);
+    }
+
+    private void JumpPlayer()
+    {
+        if (gatherInput.jumpInput && grounded)
+        {
+            rb.linearVelocity = new Vector2(gatherInput.valueX * speed, jumpForce);
+        }
+        gatherInput.jumpInput = false;
+    }
+
+    private void CheckStatus()
+    {
+        RaycastHit2D leftCheckHit = Physics2D.Raycast(leftPoint.position, Vector2.down, rayLength, groundLayer);
+        grounded = leftCheckHit;
+    }
+
+    public IEnumerator KnockBack(float forceX, float forceY, float duration, Transform otherObject)
+    {
+        int knockBackDirection;
+        if (transform.position.x < otherObject.position.x)
+            knockBackDirection = -1;
+        else
+            knockBackDirection = 1;
+
+        knockBack = true;
+        rb.linearVelocity = Vector2.zero;
+        Vector2 theForce = new Vector2(forceX * knockBackDirection, forceY);
+        rb.AddForce(theForce, ForceMode2D.Impulse);
+
+        yield return new WaitForSeconds(duration);
+        knockBack = false;
+        rb.linearVelocity = Vector2.zero;
+    }
+```
+`ส่วนที่ 6`
+`ระบบพลังชีวิตและตาย (HP System + GameOver)`
+ในส่วนนี้ เราจะเพิ่ม ระบบ Game Over ให้ผู้เล่นเห็นหน้าจอจบเกมเมื่อ HP หมด โดยจะแสดง UI “Game Over” พร้อมปุ่มให้เลือกว่าจะเล่นใหม่หรือออกจากเกม
+เปิด Scene หลัก เช่น Level1
+ใน Hierarchy → สร้าง Canvas ชื่อ LogicUI
+ภายใน Canvas → สร้าง GameObject ชื่อ GameOverUI
+ภายใน GameOverUI
+เพิ่ม Text (UI → Text – Legacy) แสดงคำว่า Game Over
+เพิ่ม Button (UI → Button – Legacy) 2 ปุ่ม
+Restart → เล่นใหม่
+Quit → ออกจากเกม
+สร้าง Empty GameObject ชื่อ LogicManager → เพิ่ม LogicScript.cs
+ลากวัตถุต่อไปนี้ลง Inspector ของ LogicManager
+StartUI → วัตถุ UI ตอนเริ่มเกม (ถ้ามี)
+GameOverUI → กล่อง Game Over ที่สร้างไว้
+HpText → Text แสดงค่าพลังชีวิตผู้เล่น
+`ขั้นตอนที่ 2 : สคริปต์ LogicScript.cs`
+```
+using Unity.Mathematics;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
+public class LogicScript : MonoBehaviour
+{
+    public GameObject StartUI;
+    public GameObject GameOverUI;
+    public Text HpText;
+
+    public void UpdatePlayerHP(float hp)
+    {
+        HpText.text = math.round(hp).ToString();
+    }
+
+    public void ShowGameOverUI()
+    {
+        GameOverUI.SetActive(true);
+    }
+
+    public void RestartGame()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void GoToScene(string sceneName)
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(sceneName);
+    }
+
+    public void QuitGame()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+        Debug.Log("Game Quit!");
+    }
+}
+```
+ขั้นตอนที่ 3 : การเชื่อมปุ่มใน Inspector
+ปุ่ม Restart → LogicScript.RestartGame()
+ปุ่ม Quit → LogicScript.QuitGame()
+ขั้นตอนที่ 4 : การเรียกใช้งาน Game Over
+เมื่อผู้เล่น HP หมด ให้เรียก ShowGameOverUI() จาก LogicScript
+ตัวอย่างใน PlayerStats.cs:
+```
+if (health <= 0)
+{
+    FindObjectOfType<LogicScript>().ShowGameOverUI();
+    Time.timeScale = 0f; // หยุดเวลาในเกม
+}
+```
+
+
+  
+ 
+
 
   
  
