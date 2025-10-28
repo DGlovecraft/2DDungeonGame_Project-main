@@ -504,9 +504,290 @@ if (health <= 0)
 }
 ```
 
+# ส่วนของการทำเสียง (sound) และ ฉากจบ (ending)
+ในส่วนของการทำเสียง เราจะทำการสร้าง Gameobject ที่มีชื่อว่า MusicManagement ไว้ในทุก Scene  
+<img width="217" height="24" alt="image" src="https://github.com/user-attachments/assets/c4cb0e4b-5829-456c-8cf5-c6de7d5dbd23" />  
+และทำการสร้างไฟล์สครีปใหม่ขึ้นมาสำหรับเขียนฟังก์ชันเล่นเสียง
+ที่ไฟล์`MusicManager`  
 
-  
- 
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class MusicManager : MonoBehaviour
+{
+    public static MusicManager Instance;
+    
+    [System.Serializable]
+    public class SceneMusic
+    {
+        public string sceneName;
+        public AudioClip musicClip;
+    }
+    
+    [SerializeField] private SceneMusic[] sceneMusicList;
+    private AudioSource audioSource;
+    
+    void Awake()
+    {
+        // Singleton Pattern - มีได้แค่ตัวเดียว
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            audioSource = GetComponent<AudioSource>();
+            audioSource.loop = true;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+        
+        // ฟังเมื่อมีการเปลี่ยน Scene
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+    
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // หาเพลงที่ตรงกับ Scene
+        foreach (SceneMusic sceneMusic in sceneMusicList)
+        {
+            if (sceneMusic.sceneName == scene.name)
+            {
+                ChangeMusic(sceneMusic.musicClip);
+                return;
+            }
+        }
+    }
+    
+    void ChangeMusic(AudioClip newClip)
+    {
+        if (audioSource.clip == newClip) return; // ถ้าเป็นเพลงเดิมไม่ต้องเปลี่ยน
+        
+        audioSource.Stop();
+        audioSource.clip = newClip;
+        audioSource.Play();
+    }
+    
+    // ฟังก์ชันเพิ่มเติม
+    public void SetVolume(float volume)
+    {
+        audioSource.volume = Mathf.Clamp01(volume);
+    }
+    
+    public void PauseMusic()
+    {
+        audioSource.Pause();
+    }
+    
+    public void ResumeMusic()
+    {
+        audioSource.UnPause();
+    }
+    
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+}
+
+ที่ inspector ของ `MusicManagement`  
+ทำการเพิ่ม คอมโพเนนต์และใส่สครีปดังรูป  
+
+<img width="438" height="404" alt="image" src="https://github.com/user-attachments/assets/4b86894d-ef60-4810-8c64-9bae452473ee" />  
+
+# ฉาก จบ  
+<img width="877" height="463" alt="image" src="https://github.com/user-attachments/assets/c6a0a591-a7d7-45e5-ba1c-9daf3ef22dd5" />  
+
+โดยใน Hierarchy 
+เราจะทำการสร้าง EndCreditManager เพื่อเก็บ พวก Canvas ข้างใน  
+<img width="279" height="111" alt="image" src="https://github.com/user-attachments/assets/84f91a38-eaa5-4d86-97c9-5f3c73cd8199" />  
+`CreditsText` เป็นการเขียน text  
+โดยเราสามารถทำให้ text ลอยขึ้นมาเป็นลูกเล่นได้ดังนี้
+สร้างไฟล์สครีป `CreditsScroller`
+
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
+
+public class CreditsScroller : MonoBehaviour
+{
+    [Header("Scroll Settings")]
+    [SerializeField] private float scrollSpeed = 50f;
+    [SerializeField] private RectTransform creditsText;
+    
+    [Header("End Position")]
+    [SerializeField] private float endPositionY = 2000f; // ระยะที่จะหยุด scroll
+    
+    [Header("Scene Settings")]
+    [SerializeField] private string nextSceneName = "MainMenu";
+    
+    [Header("Skip Settings")]
+    [SerializeField] private bool canSkipDuringScroll = true; // Skip ระหว่างเลื่อน
+    
+    [Header("UI Elements")]
+    [SerializeField] private GameObject pressKeyText; // ข้อความ "กด Enter เพื่อกลับเมนู" (Optional)
+
+    private bool isScrolling = true;
+    private bool creditsEnded = false;
+
+    void Start()
+    {
+        if (creditsText == null)
+        {
+            Debug.LogError("กรุณาลาก Text GameObject ใส่ใน Credits Text field!");
+        }
+
+        // ซ่อนข้อความ Press Key ตอนเริ่มต้น
+        if (pressKeyText != null)
+        {
+            pressKeyText.SetActive(false);
+        }
+    }
+
+    void Update()
+    {
+        if (isScrolling)
+        {
+            // เลื่อนข้อความขึ้น
+            creditsText.anchoredPosition += Vector2.up * scrollSpeed * Time.deltaTime;
+
+            // ตรวจสอบว่าถึงตำแหน่งสุดท้ายหรือยัง
+            if (creditsText.anchoredPosition.y >= endPositionY)
+            {
+                isScrolling = false;
+                creditsEnded = true;
+
+                // แสดงข้อความ Press Key
+                if (pressKeyText != null)
+                {
+                    pressKeyText.SetActive(true);
+                }
+
+                Debug.Log("Credits จบแล้ว - กดปุ่มเพื่อกลับเมนู");
+            }
+
+            // Skip ระหว่างเลื่อน (ถ้าเปิดใช้งาน)
+            if (canSkipDuringScroll && CheckSkipInput())
+            {
+                JumpToEnd();
+            }
+        }
+        else if (creditsEnded)
+        {
+            // รอกดปุ่มหลังจาก Credits จบ
+            if (CheckAnyKeyInput())
+            {
+                LoadNextScene();
+            }
+        }
+    }
+
+    // ตรวจสอบปุ่ม Skip (Escape หรือ Space)
+    bool CheckSkipInput()
+    {
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.escapeKey.wasPressedThisFrame || 
+                Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ตรวจสอบการกดปุ่มใดก็ได้ (Enter, Space, Escape, หรือคลิกเมาส์)
+    bool CheckAnyKeyInput()
+    {
+        // ตรวจสอบ Keyboard
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.enterKey.wasPressedThisFrame || 
+                Keyboard.current.spaceKey.wasPressedThisFrame ||
+                Keyboard.current.escapeKey.wasPressedThisFrame ||
+                Keyboard.current.anyKey.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+
+        // ตรวจสอบ Mouse Click
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            return true;
+        }
+
+        // ตรวจสอบ Touch (Mobile)
+        if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    // กระโดดไปจุดสิ้นสุดทันที
+    void JumpToEnd()
+    {
+        creditsText.anchoredPosition = new Vector2(
+            creditsText.anchoredPosition.x, 
+            endPositionY
+        );
+        isScrolling = false;
+        creditsEnded = true;
+
+        // แสดงข้อความ Press Key
+        if (pressKeyText != null)
+        {
+            pressKeyText.SetActive(true);
+        }
+
+        Debug.Log("Skip Credits - กดปุ่มเพื่อกลับเมนู");
+    }
+
+    void LoadNextScene()
+    {
+        if (!string.IsNullOrEmpty(nextSceneName))
+        {
+            Debug.Log("Loading Scene: " + nextSceneName);
+            SceneManager.LoadScene(nextSceneName);
+        }
+        else
+        {
+            Debug.Log("Credits Ended - ไม่มี Scene ถัดไป");
+        }
+    }
+
+    // สำหรับปุ่ม UI (ถ้ามี)
+    public void SkipToEnd()
+    {
+        if (isScrolling)
+        {
+            JumpToEnd();
+        }
+    }
+
+    public void GoToMenu()
+    {
+        LoadNextScene();
+    }
+}
+
+
+โดยเราจะใส่ สครีปไว้ใน inspector ของ CreditsScroller  
+<img width="446" height="243" alt="image" src="https://github.com/user-attachments/assets/c3455887-c2b6-492e-b705-f38e6d158767" />  
+
+ส่วน `EventSystem` เป็นหัวใจของระบบ UI Interaction ใน Unity  
+มันทำหน้าที่ตรวจจับอินพุตจากผู้เล่น เช่น:  
+
+การกดปุ่ม (เช่น “กด Space เพื่อข้ามเครดิต”)  
+
+การโต้ตอบกับปุ่ม UI หรือ Text ที่มี Event  
+
+ดังนั้นในฉากนี้มันถูกใช้เพื่อให้ผู้เล่น “กดปุ่มเพื่อข้ามเครดิตตอนจบ”  
+หรืออาจใช้ตรวจการกดคีย์เพื่อเปลี่ยนไปยัง Scene ถัดไป  
 
 
   
