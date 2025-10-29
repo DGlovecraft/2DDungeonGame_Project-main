@@ -589,12 +589,17 @@ public class MusicManager : MonoBehaviour
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
-}
+}  
+ซึ่งในไฟล์ `MusicManager`  
+เราใส่ List Music เพื่อไปเชื่อมกับฟังก์ชันเล่นเสียงเมื่อเปลี่ยน Scene นั้นๆตรงกับชื่อ หรือ Level ที่เราตั้ง  
+<img width="440" height="424" alt="image" src="https://github.com/user-attachments/assets/0977c003-7564-4b85-98de-8ef6c31ee034" />
+
 
 ที่ inspector ของ `MusicManagement`  
-ทำการเพิ่ม คอมโพเนนต์และใส่สครีปดังรูป  
+ทำการเพิ่ม component Audio sourceเพื่อที่จะสามารถทำให้สคริปเราทำงานได้ อีกทั้งยังสามารถปรับเพิ่มลดเสียงหรือloopได้
 
-<img width="438" height="404" alt="image" src="https://github.com/user-attachments/assets/4b86894d-ef60-4810-8c64-9bae452473ee" />  
+<img width="449" height="469" alt="image" src="https://github.com/user-attachments/assets/3aa81c86-3a25-4744-b9ba-2e1779f1246c" />  
+  
 
 # ฉาก จบ  
 <img width="877" height="463" alt="image" src="https://github.com/user-attachments/assets/c6a0a591-a7d7-45e5-ba1c-9daf3ef22dd5" />  
