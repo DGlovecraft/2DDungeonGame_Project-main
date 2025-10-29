@@ -1,4 +1,8 @@
 # 2D DungeonGame Present 
+รายชื่อผู้จัดทำ  
+MR. Thanakon Thipanet 673450191-2  
+MR. NATTAWUT CHANSANIT 673450036-4  
+MR. Jakkraphong samransit 673450032-2  
 >---หัวใจหลัก---
 >>- ฉากเข้าเกม  
 >>- ฉากการเล่น 5 ฉาก  
